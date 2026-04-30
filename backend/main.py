@@ -11,6 +11,7 @@ from deltalake import DeltaTable, write_deltalake
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 load_dotenv()
@@ -282,3 +283,9 @@ def save_status(entry: StatusEntry):
         return {"ok": True, "update_at": now_str}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Serve React frontend (production) ────────────────────────────────────────
+_static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(_static_dir):
+    app.mount("/", StaticFiles(directory=_static_dir, html=True), name="static")
