@@ -232,6 +232,47 @@ Azure AD Easy Auth configured on the Container App:
 
 ---
 
+## Dev → Production Deploy Checklist
+
+1. **แก้ code + ทดสอบ local** — `localhost:5173` (frontend) + `localhost:8000` (backend)
+2. **Push to GitHub**
+   ```bash
+   git add .
+   git commit -m "your message"
+   git push origin main
+   ```
+3. **GitHub Actions builds automatically** — รอ ~5-10 min, ดูที่ GitHub → Actions tab → ต้องเห็น ✅
+4. **Force redeploy on Azure** — Portal → `cman-contract-app` → Revision management → **Create new revision** → Create
+5. **Test production URL** — `https://cman-contract-app.bravegrass-bdff920e.southeastasia.azurecontainerapps.io`
+
+---
+
+## Data Architecture Decision — Web → OneLake
+
+### Current pattern (keep this)
+```
+Web → FastAPI → OneLake (Delta Lake) directly
+```
+
+### Why direct to OneLake is correct for this app
+- Data is written one record at a time (not concurrent bulk writes)
+- Already using Microsoft Fabric / Power BI — no extra pipeline needed
+- Simple = easy to maintain, low cost
+
+### When to switch to Azure SQL first
+- >20 concurrent users saving at the same time
+- Need ACID transactions (rollback on failure)
+- Complex real-time JOINs across multiple tables
+- Full audit log required on every change
+
+### Standard Microsoft Fabric stack (for larger systems)
+```
+Azure SQL (operational DB) → Fabric Pipeline (sync hourly) → OneLake Gold → Power BI
+```
+Not needed for internal tools at this scale.
+
+---
+
 ## Known gotchas
 
 ### React blank page on prop mismatch
