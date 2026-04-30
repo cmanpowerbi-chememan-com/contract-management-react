@@ -171,6 +171,67 @@ saveStatus(entry)       // POST /api/status            → { ok, update_at }
 
 ---
 
+## Production Deployment — Azure Container Apps
+
+### Live URL
+`https://cman-contract-app.bravegrass-bdff920e.southeastasia.azurecontainerapps.io`
+
+### Azure Resources
+| Resource | Name | Notes |
+|----------|------|-------|
+| Subscription | `CMAN Azure Subscription` | |
+| Resource Group | `CMAN-CONTRACT-MNGT-WEB-RG` | Region: Southeast Asia |
+| Container Registry | `cmancontractregistry` | Basic tier, `cmancontractregistry.azurecr.io` |
+| Container App | `cman-contract-app` | 0.5 CPU, 1Gi memory, Consumption plan |
+| Container App Environment | `cman-contract-env` | |
+| Docker image | `cmancontractregistry.azurecr.io/cman-contract-app:latest` | |
+
+### Architecture — single container
+- **Stage 1** (Dockerfile): Node 20 builds React → `dist/`
+- **Stage 2** (Dockerfile): Python 3.12 runs FastAPI + serves React `dist/` as static files from `backend/static/`
+- Single port `8000` serves both API (`/api/*`) and frontend (`/`)
+- `VITE_API_URL` is empty in production → frontend calls same origin, no CORS needed
+
+### Environment variables set in Container App
+- `TENANT_ID` — Azure AD tenant
+- `CLIENT_ID` — Azure AD app client ID
+- `CLIENT_SECRET` — Azure AD app client secret
+
+### CI/CD — GitHub Actions
+File: `.github/workflows/deploy.yml`
+- Triggers on every push to `main`
+- Logs into ACR using GitHub secrets `ACR_USERNAME` + `ACR_PASSWORD`
+- Builds Docker image → pushes `cman-contract-app:latest` to ACR
+- Container App must be manually restarted or set to pull latest on revision (see below)
+
+### GitHub Secrets required
+| Secret | Value |
+|--------|-------|
+| `ACR_USERNAME` | `cmancontractregistry` |
+| `ACR_PASSWORD` | ACR admin password (stored in OneLake) |
+
+### Redeploy after GitHub push
+After GitHub Actions pushes a new image, force the Container App to pick it up:
+- Azure Portal → `cman-contract-app` → **Revision management** → **Create new revision** → Save
+- Or: Portal → Container → Edit container → change image tag to force restart
+
+### Authentication — @chememan.com only (PENDING admin approval)
+Azure AD Easy Auth configured on the Container App:
+- Identity provider: Microsoft (Workforce / Single tenant)
+- App registration: `cman-contract-app` in `chememan.com` Azure AD
+- Restrict access: Require authentication
+- Unauthenticated: HTTP 302 redirect to Microsoft login
+- **Status**: Waiting for Azure AD admin to grant consent
+- **Admin must**: Portal → Microsoft Entra ID → Enterprise applications → `cman-contract-app` → Permissions → **"Grant admin consent for chememan.com"**
+- Azure AD admins: `adminnc@chememan.com`, `arthids@chememan.com`, `ekburuta@chememan.com`, `ittipolu@chememan.com`, `pratool@chememan.com`, `suchanyay@chememan.com`
+
+### .gitignore additions for deployment
+- `frontend/node_modules/`, `frontend/dist/` — never committed
+- `backend/.env` — secrets stay local / in OneLake
+- `.dockerignore` excludes `.venv/`, `node_modules/`, `.env` from Docker build context
+
+---
+
 ## Known gotchas
 
 ### React blank page on prop mismatch
