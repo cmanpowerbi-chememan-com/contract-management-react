@@ -1,0 +1,200 @@
+# Contract Management PRD — CLAUDE.md
+
+## Project goal
+Convert the Streamlit contract management app into a proper web app:
+- **Backend**: FastAPI (Python) — handles Azure AD auth + OneLake/Delta Lake read/write
+- **Frontend**: React (Vite) — same Aurora mesh gradient theme as Streamlit version
+
+## Stack
+- **Backend**: FastAPI + uvicorn, `deltalake`, `pandas`, `pytz`, `python-dotenv`
+- **Frontend**: React 19 + Vite 6, axios, CSS Modules
+- **Storage**: Microsoft Fabric OneLake via Delta Lake
+- **Auth**: Azure AD client credentials → bearer token, cached 3000s
+
+## Status: COMPLETE
+All components built and tested end-to-end. Full flow works: load → fill form → save → row flash → OneLake write.
+
+## Project structure
+```
+02.contract_management_streamlit_prd/
+├── backend/
+│   ├── main.py              # FastAPI app — COMPLETE
+│   ├── requirements.txt     # Python deps
+│   ├── .env                 # Azure AD secrets (gitignored)
+│   ├── .env.example         # Template (TENANT_ID, CLIENT_ID, CLIENT_SECRET)
+│   ├── .gitignore
+│   └── .venv/               # Python virtual env
+├── frontend/
+│   ├── public/
+│   │   └── loading_wizard.png   # (kept but unused — replaced by CSS spinner)
+│   ├── src/
+│   │   ├── index.css            # Global styles — Aurora background, Sora font
+│   │   ├── main.jsx             # React entry point
+│   │   ├── App.jsx              # Main app — progressive loading, toast, flash
+│   │   ├── App.module.css       # Layout, toast, error screen styles
+│   │   ├── services/
+│   │   │   └── api.js           # Axios calls to FastAPI — all 6 endpoints
+│   │   └── components/
+│   │       ├── LoadingOverlay.jsx        # Pure CSS spinner overlay
+│   │       ├── LoadingOverlay.module.css
+│   │       ├── ContractForm.jsx          # Form with searchable Doc No combobox
+│   │       ├── ContractForm.module.css
+│   │       ├── ContractTable.jsx         # Table with row flash + refresh
+│   │       └── ContractTable.module.css
+│   ├── index.html           # Sora font imported here
+│   └── package.json
+├── icon/
+│   └── loading_wizard.png   # Source snowman wizard PNG
+├── app.py                   # Old Streamlit app (reference only)
+└── requirements.txt         # Old Streamlit deps (reference only)
+```
+
+## How to run
+
+### Backend
+```bash
+cd backend
+.venv/Scripts/activate   # Windows
+uvicorn main:app --reload --port 8000
+```
+
+### Frontend
+```bash
+cd frontend
+npm run dev   # starts at http://localhost:5173
+```
+
+---
+
+## Backend — FastAPI
+
+### Endpoints
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/status-options` | Returns 7 purchaser status strings |
+| GET | `/api/contracts` | Loads `gold_contract_management` (5 min cache) |
+| GET | `/api/doc-numbers` | Loads `purchasing_doc_no` from `silver_sap_tct_header` (5 min cache) |
+| GET | `/api/status` | Returns `_status_df` in-memory cache (loaded once, never expires) |
+| GET | `/api/status/refresh` | Force-reloads `gold_manual_contract_status` from OneLake, updates cache |
+| POST | `/api/status` | Updates cache immediately → writes OneLake in background thread |
+
+### CORS
+Allows `http://localhost:5173`, `http://localhost:5174`, `http://localhost:3000`
+
+### In-memory caching architecture
+Four independent caches, each with a `threading.Lock`:
+- `_token_cache` — Azure AD bearer token, 3000s TTL
+- `_contracts_cache` — gold_contract_management data, 5 min TTL
+- `_docnums_cache` — silver_sap_tct_header doc numbers, 5 min TTL
+- `_status_df` — gold_manual_contract_status as a pandas DataFrame, never auto-expires; updated on every POST and force-reloaded by `/api/status/refresh`
+
+### Save flow (background write — Option A)
+1. Acquire `_status_lock`; prepend new row, drop old row for same `purchasing_doc_no`
+2. Release lock; return `{"ok": True, "update_at": now_str}` immediately (~490ms warm)
+3. Background daemon thread calls `write_deltalake(..., mode="overwrite", schema_mode="overwrite")`
+4. First save after cold start is ~6s (loads `_status_df` from OneLake inside the lock)
+
+**Why full overwrite, not MERGE**: Delta MERGE requires multiple OneLake round-trips over HTTPS and proved ~14s on this unpartitioned small table — slower than full overwrite at ~8s.
+
+### Critical: timestamp_ntz schema
+`update_at` column in `gold_manual_contract_status` is `timestamp_ntz` (timezone-naive).
+Must use `datetime.now(bkk).replace(tzinfo=None)` — a Python `datetime` object, not a string.
+After `pd.concat`, always cast: `df["update_at"] = pd.to_datetime(df["update_at"])`.
+All string columns: `fillna("").astype(str)` before writing.
+
+### OneLake tables
+| Table | Usage |
+|-------|-------|
+| `gold_contract_management` | Master contract list — read only |
+| `gold_manual_contract_status` | Purchaser status entries — read/write |
+| `silver_sap_tct_header` | Source of `purchasing_doc_no` list — read only |
+
+### Columns in gold_manual_contract_status
+- `purchasing_doc_no` — primary key (string)
+- `user_status` — from email alerts, never overwritten by the form
+- `purchaser_status` — 7-option dropdown
+- `comment` — free text
+- `new_purchasing_doc_no` — เลขสัญญาใหม่ (digits only)
+- `update_at` — `timestamp_ntz`, Bangkok time, stored as timezone-naive datetime
+
+---
+
+## Frontend — React
+
+### Theme — Aurora Mesh Gradient
+- Background: `#0f0f1a` dark navy + animated aurora (CSS `::before` on `body`)
+- Font: **Sora** (loaded in `index.html`)
+- Inputs/Select: glass morphism `rgba(255,255,255,0.05)` + backdrop blur
+- Input text (Comment & เลขสัญญาใหม่): `#a855f7` purple
+- Button Save: gradient cyan `#06b6d4` → purple `#a855f7` with glow on hover
+- Title gradient: white → cyan → purple (shimmer)
+
+### App.jsx — progressive loading strategy
+- Show UI after fast endpoints respond (status + options, ~1-2s); spinner disappears then
+- Heavy data (contracts, doc numbers from OneLake) loads in background after UI is shown
+- `docNumbersLoading` prop to `ContractForm` shows a skeleton while doc list loads
+- On save: update `statuses` state immediately (optimistic); API writes concurrently
+- Flash: `flashedDocNo` + `flashTick` passed to `ContractTable`; incrementing `flashTick` on each save remounts the flashed `<tr>` key → CSS animation restarts
+- Toast: 3.5s auto-dismiss, `clearTimeout` prevents stacking
+
+### LoadingOverlay
+Pure CSS spinner (no image dependency):
+- Dual-color `border` ring: `border-top-color: #06b6d4` (cyan), `border-right-color: #a855f7` (purple)
+- `will-change: transform` for GPU compositing
+- 0.75s linear spin
+
+### ContractForm
+- **DocSearch** sub-component: searchable combobox backed by `docNumbers` string array from `silver_sap_tct_header`
+- Filters on substring match; shows up to 50 results + "+N more" hint
+- Dropdown closes on outside click (mousedown listener)
+- On doc selection: pre-fills form from `existingStatuses` or defaults `purchaserStatus` to `options[0]` (matches Streamlit `index=0`)
+- `user_status` from existing row is preserved on save — never overwritten by the form
+
+### ContractTable
+- Custom `<table>`, no library
+- Columns: Doc No | Contract Name | User Status | Purchaser Status | Comment | เลขสัญญาใหม่ | Updated At
+- `findNameCol()` auto-detects contract name column by keywords: `['name', 'contract', 'desc', 'short', 'text']`
+- Date format: `String(val).substring(0, 16)` — shows `YYYY-MM-DD HH:MM`, strips seconds
+- Row flash: `.flashRow` CSS animation `#FFE3E1 → transparent` over 6s; key includes `flashTick` to remount on each save
+- Empty state: centered message when no statuses loaded
+- "↺ Refresh data" button calls `onRefresh` → `refreshStatus()` → force OneLake reload via `/api/status/refresh`
+
+### API service (`src/services/api.js`)
+```js
+getContracts()          // GET /api/contracts         → contract[]
+getDocNumbers()         // GET /api/doc-numbers        → string[]
+getStatus()             // GET /api/status             → status[] (from cache)
+refreshStatus()         // GET /api/status/refresh     → status[] (force OneLake reload)
+getOptions()            // GET /api/status-options     → string[]
+saveStatus(entry)       // POST /api/status            → { ok, update_at }
+```
+
+---
+
+## Known gotchas
+
+### React blank page on prop mismatch
+If App.jsx passes a prop to a component but the component doesn't destructure it, the variable is `undefined` in JSX → `ReferenceError` → React unmounts entire tree → blank page.
+Always verify destructured props match what the parent passes.
+
+### Delta MERGE vs overwrite
+MERGE is slower than overwrite for small unpartitioned tables over HTTPS OneLake. Do not switch back to MERGE.
+
+### CORS port mismatch
+Vite may pick port 5174 if 5173 is taken. `main.py` CORS list includes both. If adding a new dev port, add it to `allow_origins`.
+
+### Cold start save latency
+First POST after server restart loads `_status_df` from OneLake inside the lock (~6s). Subsequent POSTs: ~490ms. This is expected.
+
+---
+
+## Purchaser Status options
+```
+Not Start
+RFQ - Request for Quotation
+Compared
+RL - Recommend Letter
+OA Created
+Cancel OA
+Completed
+```

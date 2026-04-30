@@ -1,5 +1,16 @@
+# Secrets — NEVER commit these
+.env
 .streamlit/secrets.toml
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
-.env
+.venv/
+venv/
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
