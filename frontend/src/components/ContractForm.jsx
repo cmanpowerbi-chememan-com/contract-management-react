@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { saveStatus } from '../services/api';
+import { MagneticButton } from './ui/magnetic-button';
 import styles from './ContractForm.module.css';
 
 function DocSearch({ docNumbers, docNumbersLoading, value, onChange }) {
@@ -163,13 +164,15 @@ export default function ContractForm({ docNumbers, docNumbersLoading, options, e
         />
       </div>
 
-      <button
+      <MagneticButton
         className={styles.saveBtn}
         onClick={handleSave}
         disabled={!docNo || !purchaserStatus || saving}
+        strength={0.4}
+        radius={100}
       >
         {saving ? 'Saving...' : 'Save'}
-      </button>
+      </MagneticButton>
       {saving && <p className={styles.savingNote}>Writing to OneLake…</p>}
       {saveError && <p className={styles.errorNote}>{saveError}</p>}
     </div>

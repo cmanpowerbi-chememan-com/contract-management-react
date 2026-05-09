@@ -3,6 +3,7 @@ import { getContracts, getDocNumbers, getStatus, refreshStatus, getOptions } fro
 import LoadingOverlay from './components/LoadingOverlay';
 import ContractForm from './components/ContractForm';
 import ContractTable from './components/ContractTable';
+import { BackgroundGradientAnimation } from './components/ui/background-gradient-animation';
 import styles from './App.module.css';
 
 export default function App() {
@@ -81,29 +82,43 @@ export default function App() {
   );
 
   return (
-    <div className={styles.app}>
-      <div>
-        <h1 className={styles.title}>Contract Status</h1>
-        <p className={styles.caption}>กรอก Purchaser Status สำหรับแต่ละ Purchasing Doc</p>
+    <BackgroundGradientAnimation
+      gradientBackgroundStart="rgb(8, 8, 18)"
+      gradientBackgroundEnd="rgb(5, 5, 20)"
+      firstColor="4, 100, 140"
+      secondColor="90, 40, 140"
+      thirdColor="60, 30, 100"
+      fourthColor="20, 60, 120"
+      fifthColor="50, 50, 110"
+      pointerColor="80, 50, 160"
+      containerClassName="min-h-screen"
+    >
+      {/* dark veil to dim the animated blobs */}
+      <div className="absolute inset-0 bg-black/60 z-[5]" />
+      <div className={`${styles.app} absolute inset-0 z-10`}>
+        <div>
+          <h1 className={styles.title}>Contract Status</h1>
+          <p className={styles.caption}>กรอก Purchaser Status สำหรับแต่ละ Purchasing Doc</p>
+        </div>
+        <div className={styles.layout}>
+          <ContractForm
+            docNumbers={docNumbers}
+            docNumbersLoading={docNumbersLoading}
+            options={options}
+            existingStatuses={statuses}
+            onSave={handleSave}
+          />
+          <ContractTable
+            contracts={contracts}
+            statuses={statuses}
+            flashedDocNo={flashedDocNo}
+            flashTick={flashTick}
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
+          />
+        </div>
+        {toast && <div className={styles.toast}>{toast}</div>}
       </div>
-      <div className={styles.layout}>
-        <ContractForm
-          docNumbers={docNumbers}
-          docNumbersLoading={docNumbersLoading}
-          options={options}
-          existingStatuses={statuses}
-          onSave={handleSave}
-        />
-        <ContractTable
-          contracts={contracts}
-          statuses={statuses}
-          flashedDocNo={flashedDocNo}
-          flashTick={flashTick}
-          onRefresh={handleRefresh}
-          refreshing={refreshing}
-        />
-      </div>
-      {toast && <div className={styles.toast}>{toast}</div>}
-    </div>
+    </BackgroundGradientAnimation>
   );
 }

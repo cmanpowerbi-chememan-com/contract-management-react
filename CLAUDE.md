@@ -45,6 +45,12 @@ All components built and tested end-to-end. Full flow works: load → fill form 
 │   └── package.json
 ├── icon/
 │   └── loading_wizard.png   # Source snowman wizard PNG
+├── skill/
+│   └── skill_weekly_update.md   # Weekly update skill definition
+├── setup/
+│   └── create_weekly_update.py  # SharePoint sync script (msal + openpyxl)
+├── weekly update/
+│   └── Purchase Dashboard_Project summary.xlsx  # Local copy of SP weekly update file
 ├── app.py                   # Old Streamlit app (reference only)
 └── requirements.txt         # Old Streamlit deps (reference only)
 ```
@@ -215,15 +221,13 @@ After GitHub Actions pushes a new image, force the Container App to pick it up:
 - Azure Portal → `cman-contract-app` → **Revision management** → **Create new revision** → Save
 - Or: Portal → Container → Edit container → change image tag to force restart
 
-### Authentication — @chememan.com only (PENDING admin approval)
+### Authentication — @chememan.com only (DONE 6-May-26)
 Azure AD Easy Auth configured on the Container App:
 - Identity provider: Microsoft (Workforce / Single tenant)
 - App registration: `cman-contract-app` in `chememan.com` Azure AD
 - Restrict access: Require authentication
 - Unauthenticated: HTTP 302 redirect to Microsoft login
-- **Status**: Waiting for Azure AD admin to grant consent
-- **Admin must**: Portal → Microsoft Entra ID → Enterprise applications → `cman-contract-app` → Permissions → **"Grant admin consent for chememan.com"**
-- Azure AD admins: `adminnc@chememan.com`, `arthids@chememan.com`, `ekburuta@chememan.com`, `ittipolu@chememan.com`, `pratool@chememan.com`, `suchanyay@chememan.com`
+- **Status**: Admin consent granted ✓ (adminnc, arthids, ittipolu, pratool)
 
 ### .gitignore additions for deployment
 - `frontend/node_modules/`, `frontend/dist/` — never committed
@@ -300,3 +304,55 @@ OA Created
 Cancel OA
 Completed
 ```
+
+---
+
+## Weekly Update — SharePoint Sync
+
+### Script
+`setup/create_weekly_update.py` — run anytime to sync task status to SharePoint.
+
+```bash
+backend\.venv\Scripts\python.exe setup\create_weekly_update.py
+```
+
+### How it works (same pattern as 04.budget_management_web)
+1. Download current SharePoint file → read existing rows (incl. colleague tasks)
+2. Upsert local `ROWS` by Action name — local wins on conflict, colleague-only rows preserved
+3. Rebuild fresh Excel with formatting (alternating rows, color-coded types, frozen header)
+4. Save locally to `weekly update/Purchase Dashboard_Project summary.xlsx`
+5. Upload to SharePoint via Microsoft Graph API (MSAL client credentials)
+
+### SharePoint target
+- Site: `chememan.sharepoint.com/teams/CMANDigitalTechnology`
+- Folder: `General/05 Data Analytics/03 Project/2.Purchase/02_Contract Management`
+- File: `Purchase Dashboard_Project summary.xlsx`
+
+### Auth
+Uses same `TENANT_ID` / `CLIENT_ID` / `CLIENT_SECRET` from `backend/.env`.
+App needs `Sites.ReadWrite.All` permission in Azure AD (already granted).
+
+### Skill trigger
+Say "update weekly update" / "push weekly update" / "sync weekly update" →
+Claude updates ROWS in the script then runs it.
+
+### Current task list (as of 6-May-26)
+| Action type | Action | Status | Cut-off |
+|---|---|---|---|
+| Development | FastAPI Backend | Done | 6-May-26 |
+| Development | React Frontend | Done | 6-May-26 |
+| Development | Azure Container Apps Deployment | Done | 6-May-26 |
+| Development | GitHub Actions CI/CD | Done | 6-May-26 |
+| Development | Export Data - Download Button on Web | In Progress | 15-Jun-26 |
+| Project Settings | Azure AD Easy Auth | Done | 6-May-26 |
+| Project Settings | Weekly Update Skill | Done | 6-May-26 |
+
+---
+
+## Planned features
+
+### Export Data — Download Button on Web
+- User clicks a download button on the web UI to export contract data as Excel/CSV
+- Status: In Progress, cut-off 15-Jun-26
+- Will need a new FastAPI endpoint (e.g. `GET /api/contracts/export`) returning a file response
+- Frontend: button in ContractTable triggers download via `<a>` tag or `window.location`
