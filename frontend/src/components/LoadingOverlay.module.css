@@ -1,25 +1,27 @@
+/* ============================================================
+   LoadingOverlay — Playful Geometric recolor
+   ============================================================ */
 .overlay {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: #0f0f1a;
+  /* Cream bg + dot-grid so it matches the page */
+  background-color: #FFFDF5;
+  background-image: radial-gradient(#E2E8F0 1.5px, transparent 1.5px);
+  background-size: 22px 22px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* Dual-ring CSS spinner — zero images, GPU-composited, no layout cost */
+/* Dual-color ring: violet top + pink right — matches playful palette */
 .ring {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
-  border: 3px solid rgba(255, 255, 255, 0.08);
-  border-top-color: #06b6d4;
-  border-right-color: #a855f7;
-  animation: spin 0.75s linear infinite;
+  border: 3.5px solid rgba(139, 92, 246, 0.12); /* faint violet base */
+  border-top-color:  #8B5CF6;  /* violet */
+  border-right-color: #F472B6; /* pink */
+  animation: pg-spin 0.75s linear infinite;
   will-change: transform;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }

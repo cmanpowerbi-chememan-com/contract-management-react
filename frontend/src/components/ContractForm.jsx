@@ -35,14 +35,21 @@ function DocSearch({ docNumbers, docNumbersLoading, value, onChange }) {
 
   return (
     <div className={styles.comboWrap} ref={ref}>
+      <span className={styles.comboIcon} aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+      </span>
       <input
-        className={`${styles.input} ${styles.inputWhite}`}
+        className={`${styles.input} ${styles.inputCombo}`}
         type="text"
         value={query}
         placeholder="ค้นหา Doc No..."
         onChange={e => { setQuery(e.target.value); onChange(''); setOpen(true); }}
         onFocus={() => setOpen(true)}
         autoComplete="off"
+        role="combobox"
+        aria-expanded={open}
       />
       {open && filtered.length > 0 && (
         <ul className={styles.dropdown}>
@@ -119,62 +126,96 @@ export default function ContractForm({ docNumbers, docNumbersLoading, options, e
   };
 
   return (
-    <div className={styles.form}>
-      <h2 className={styles.title}>เพิ่ม / แก้ไข</h2>
-
-      <div className={styles.field}>
-        <label className={styles.label}>Purchasing Doc No</label>
-        <DocSearch
-          docNumbers={docNumbers}
-          docNumbersLoading={docNumbersLoading}
-          value={docNo}
-          onChange={setDocNo}
-        />
+    <section className={styles.card} aria-labelledby="form-heading">
+      <div className={styles.cardHead}>
+        <span className={`${styles.headDot} ${styles.dotPink}`} aria-hidden="true" />
+        <h2 id="form-heading" className={styles.cardTitle}>เพิ่ม / แก้ไข</h2>
       </div>
 
-      <div className={styles.field}>
-        <label className={styles.label}>Purchaser Status</label>
-        <select className={styles.select} value={purchaserStatus} onChange={e => setPurchaserStatus(e.target.value)}>
-          <option value="">— Select —</option>
-          {options.map(o => (
-            <option key={o} value={o}>{o}</option>
-          ))}
-        </select>
+      {/* Horizontal entry bar — all fields + Save button in one row */}
+      <div className={styles.formRow}>
+        {/* Doc No combobox */}
+        <div className={`${styles.field} ${styles.fieldDoc}`}>
+          <label className={styles.label} htmlFor="docno-input">Purchasing Doc No</label>
+          <DocSearch
+            docNumbers={docNumbers}
+            docNumbersLoading={docNumbersLoading}
+            value={docNo}
+            onChange={setDocNo}
+          />
+        </div>
+
+        {/* Purchaser Status */}
+        <div className={`${styles.field} ${styles.fieldStatus}`}>
+          <label className={styles.label} htmlFor="pstatus-select">Purchaser Status</label>
+          <select
+            id="pstatus-select"
+            className={styles.select}
+            value={purchaserStatus}
+            onChange={e => setPurchaserStatus(e.target.value)}
+          >
+            <option value="">— Select —</option>
+            {options.map(o => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Comment */}
+        <div className={`${styles.field} ${styles.fieldComment}`}>
+          <label className={styles.label} htmlFor="comment-input">Comment</label>
+          <textarea
+            id="comment-input"
+            className={styles.textarea}
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            placeholder="Enter comment..."
+            rows={1}
+          />
+        </div>
+
+        {/* เลขสัญญาใหม่ */}
+        <div className={`${styles.field} ${styles.fieldNewNo}`}>
+          <label className={styles.label} htmlFor="newno-input">เลขสัญญาใหม่</label>
+          <input
+            id="newno-input"
+            className={styles.input}
+            type="text"
+            value={newDocNo}
+            onChange={e => setNewDocNo(e.target.value.replace(/\D/g, ''))}
+            placeholder="Digits only"
+          />
+        </div>
+
+        {/* Save button */}
+        <div className={`${styles.field} ${styles.fieldSave}`}>
+          {/* Invisible label to keep vertical alignment consistent */}
+          <label className={styles.labelHidden} aria-hidden="true">Save</label>
+          <MagneticButton
+            className={styles.saveBtn}
+            onClick={handleSave}
+            disabled={!docNo || !purchaserStatus || saving}
+            strength={0.4}
+            radius={100}
+          >
+            <span className={styles.saveBtnIcon} aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+            </span>
+            {saving ? 'Saving...' : 'Save'}
+          </MagneticButton>
+        </div>
       </div>
 
-      <div className={styles.field}>
-        <label className={styles.label}>Comment</label>
-        <textarea
-          className={styles.textarea}
-          value={comment}
-          onChange={e => setComment(e.target.value)}
-          placeholder="Enter comment..."
-          rows={3}
-        />
-      </div>
-
-      <div className={styles.field}>
-        <label className={styles.label}>เลขสัญญาใหม่</label>
-        <input
-          className={styles.input}
-          type="text"
-          value={newDocNo}
-          onChange={e => setNewDocNo(e.target.value.replace(/\D/g, ''))}
-          placeholder="Digits only"
-        />
-      </div>
-
-      <MagneticButton
-        className={styles.saveBtn}
-        onClick={handleSave}
-        disabled={!docNo || !purchaserStatus || saving}
-        strength={0.4}
-        radius={100}
-      >
-        {saving ? 'Saving...' : 'Save'}
-      </MagneticButton>
-      {saving && <p className={styles.savingNote}>Writing to OneLake…</p>}
+      {/* OneLake note + error */}
+      <p className={styles.onelakeNote}>
+        <span className={styles.pulse} aria-hidden="true" />
+        เขียนไป OneLake โดยตรง
+      </p>
       {saveError && <p className={styles.errorNote}>{saveError}</p>}
-    </div>
+    </section>
   );
 }
