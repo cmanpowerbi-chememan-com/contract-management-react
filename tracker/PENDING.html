@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PENDING — 02.contract_management_streamlit_prd</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Segoe UI","Leelawadee UI","Tahoma",sans-serif;background:#0f172a;color:#e2e8f0;padding:28px;max-width:1100px;margin:0 auto}
+  h1{font-size:24px;color:#f8fafc}
+  .meta{font-size:13px;color:#94a3b8;margin:4px 0 14px}
+  .chips{display:flex;gap:16px;margin-bottom:22px;font-size:14px;font-weight:600}
+  .card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px 16px;margin-bottom:13px}
+  .top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .badge{font-size:12px;font-weight:700;border:1px solid;border-radius:6px;padding:3px 10px}
+  .ref{margin-right:auto;font-family:Consolas,monospace;font-size:12px;color:#cbd5e1;background:#0f172a;border:1px solid #475569;border-radius:6px;padding:2px 8px}
+  .dt{font-size:11.5px;color:#64748b;font-family:Consolas,monospace}
+  .id{font-family:Consolas,monospace;font-size:15px;color:#f1f5f9;margin-bottom:8px}
+  .who{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .tag{font-size:11px;border-radius:6px;padding:2px 8px;border:1px solid}
+  .tag.agent{color:#fbbf24;border-color:#fbbf2455;background:#2a230f}
+  .tag.skill{color:#67e8f9;border-color:#67e8f955;background:#0c2a30}
+  .block{display:flex;gap:9px;font-size:13px;line-height:1.6;padding:7px 0}
+  .block .lbl{flex:0 0 52px;font-size:11px;font-weight:700;color:#94a3b8;padding-top:2px}
+  .block.ai code{display:block;background:#0f172a;border:1px solid #2d3a4f;border-radius:7px;padding:8px 10px;color:#a5b4fc;font-family:Consolas,monospace;font-size:12px;white-space:pre-wrap}
+  .block.hu span{color:#e2e8f0}
+  .files{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 2px 61px}
+  .files a{font-size:12px;color:#f9a8d4;text-decoration:none;background:#2a1020;border:1px solid #be185d;border-radius:6px;padding:3px 9px}
+  .files a:hover{background:#3a1530;color:#fbcfe8}
+  .newest{font-size:11px;font-weight:700;color:#fde68a;background:#3b2f0f;border:1px solid #f59e0b88;border-radius:6px;padding:2px 8px}
+  .card>*{position:relative;z-index:1}
+  .card.latest{position:relative;border-color:#f59e0b;background:linear-gradient(120deg,#1e293b 0%,#2a3550 45%,#1e293b 90%);overflow:hidden;animation:glow 2.4s ease-in-out infinite}
+  .card.latest::before{content:"";position:absolute;top:0;left:-70%;width:55%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.20),transparent);transform:skewX(-18deg);animation:shine 2.8s ease-in-out infinite;z-index:2;pointer-events:none}
+  @keyframes shine{0%{left:-70%}55%{left:130%}100%{left:130%}}
+  @keyframes glow{0%,100%{box-shadow:inset 0 0 0 2px #f59e0b55}50%{box-shadow:inset 0 0 0 2px #f59e0bdd}}
+  .filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:22px}
+  .fbtn{font-family:inherit;font-size:13.5px;font-weight:600;color:#cbd5e1;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:6px 13px;cursor:pointer}
+  .fbtn:hover{border-color:#64748b}
+  .fbtn.active{background:#334155;border-color:#94a3b8;color:#f8fafc}
+</style></head><body>
+  <h1>📋 PENDING — Contract Status — procurement tracking web app (FastAPI + React, OneLake)</h1>
+  <div class="meta">project: <b>02.contract_management_streamlit_prd</b> &bull; updated: 21 July 2026 1:40 PM &bull; rendered: 27 July 2026 3:27 PM</div>
+  <div class="filters"><button class="fbtn active" data-f="all">ทั้งหมด (11)</button><button class="fbtn" data-f="doing" style="color:#f59e0b">● DOING: 0</button><button class="fbtn" data-f="willdo" style="color:#3b82f6">○ WILL DO: 0</button><button class="fbtn" data-f="done" style="color:#22c55e">✓ DONE: 11</button></div>
+  
+    <div class="card latest" data-state="done" style="border-left:4px solid #22c55e">
+      <div class="top">
+        <span class="badge" style="color:#22c55e;background:#16271c;border-color:#22c55e55">✓ DONE</span>
+        <span class="newest">✨ ล่าสุด</span>
+        <span class="ref" title="อ้างอิง task นี้เวลาคุยกับ CC">#lost-update-email-button-vs-web</span>
+        <span class="dt">27 July 2026 11:00 AM &rarr; 27 July 2026 11:30 AM</span>
+      </div>
+      <div class="id">lost-update-email-button-vs-web</div>
+      <div class="who"><span class="tag agent">🤖 main (40-diagnose)</span><span class="tag skill">🧩 40-diagnose</span></div>
+      <div class="block ai"><span class="lbl">🤖 AI</span><code>INCIDENT: user clicked email-button confirm (dok 3110000188) 7/20 10:35, page success, but 7/27 email still alerts + web missing it. Delta history PROVES lost update: v188-190 (7/20 03:35-03:36Z, delta-rs py-1.5.0 = cman-email-purchase-confirm function) wrote 3110000188 + 3110000193 user_status=totosanya; v191 (7/22 02:08Z, py-1.6.1 = web backend full-overwrite from stale in-memory _status_df loaded pre-7/20) REMOVED both rows (rowcount back to 194). Root cause: TWO writers both doing full-table overwrite; backend _status_df never expires and backend never re-reads before write. Success page shows &#x27;TEST VS CODE&#x27; leftover string in function html (cosmetic). Also in function: update_at written tz-AWARE (schema is timestamp_ntz) + GET-with-side-effect links (SafeLinks scanner could auto-click both actions incl. mai-totosanya). Historical audit v150-192 DONE: damage = exactly these 2 docs (3110000082 was lost at v157 but later restored; nothing else missing). USER CHOSE REPORT-ONLY — NO fix applied: rows NOT restored, backend overwrite-from-stale-cache NOT fixed, function TEST-text/tz-aware/GET-side-effect NOT fixed. STANDING RISK: any web Save can wipe future email-button clicks again; 3110000188+3110000193 keep alerting until restored or re-clicked AFTER a backend cache refresh. Restore recipe ready: rows recoverable from table version 190 (time travel), then restart container app (or /api/status/refresh) BEFORE next web save.</code></div>
+      <div class="block hu"><span class="lbl">👤 คน</span><span>ปุ่มยืนยันในอีเมลเขียนลงตารางสำเร็จจริง (7/20) แต่ 2 วันถัดมาเว็บ Save แล้วเอา cache เก่าทับทั้งตาราง ทำให้แถวหาย 2 สัญญา (3110000188, 3110000193) — email เลยแจ้งซ้ำและเว็บไม่ขึ้น กำลังไล่ประวัติหาแถวอื่นที่เคยหายแบบเดียวกัน รอเลือกวิธีแก้</span></div>
+      <div class="files"><a href="../../02.contract_management_email_button/function_app.py" target="_blank">📎 confirm function</a><a href="../backend/main.py" target="_blank">📎 web backend</a></div>
+    </div>
+
+    <div class="card" data-state="done" style="border-left:4px solid #22c55e">
+      <div class="top">
+        <span class="badge" style="color:#22c55e;background:#16271c;border-color:#22c55e55">✓ DONE</span>
+        
+        <span class="ref" title="อ้างอิง task นี้เวลาคุยกับ CC">#fix-pipeline1-badzipfile</span>
+        <span class="dt">21 July 2026 1:40 PM &rarr; 21 July 2026 4:10 PM</span>
+      </div>
+      <div class="id">fix-pipeline1-badzipfile</div>
+      <div class="who"><span class="tag agent">🤖 main (40-diagnose)</span><span class="tag skill">🧩 40-diagnose</span></div>
+      <div class="block ai"><span class="lbl">🤖 AI</span><code>INCIDENT: purchase_workspace pipeline1 scheduled runs fail every 20min since 11:57 (first run after 11:40). Root cause CONFIRMED: app cman-sharepoint-read (770a44d2) client secret &#x27;d4B&#x27; expired 2026-07-21T04:40Z; Variable Library common_config_variables_sharepoint_read still holds it. Notebook_2 downloads MNL_M_COMPANY.xlsx from SP /teams/DataWarehouse via Graph with no status check -&gt; error JSON fed to pd.read_excel -&gt; BadZipFile. File itself healthy (verified download+read OK with backend/.env SP). Newer secret &#x27;Kb1&#x27; exists (2026-06-04..2028-06-03) but its value was never put into the Variable Library. FIXED+VERIFIED 2026-07-21: new secret via az credential reset --append (value file-only, deleted after use, never in chat); varlib client_secret rotated via updateDefinition, verified re-fetch + E2E token-&gt;site-&gt;download 200 PK; Notebook_2 hardened +7 guard lines (token/site_id null-checks, raise_for_status, PK magic) diff +7/-0 Thai-intact, pushed, landed-markers OK; manual rerun job 6eec6e79 Completed. GOLIVE VERIFY workflow 5/5 PASS (nb landed, secret e2e, 7 post-fix runs Completed newest 08:36Z, mnl_n_company.csv fresh 08:36Z 11 rows, failure emails stopped 06:37Z). gate:APPROVE-WITH-SUGGESTIONS (06 approve-sugg / 07 approve-sugg / 08 approve; retry after first gate died with session). Remediated: dead-secret scratch file deleted, value added to hermes mask. Open suggestions (not blocking): Key Vault/cert creds instead of plaintext varlib secret; az ad app credential delete old expired keys on 770a44d2; expiry reminder (new secret ~2028-07; Kb1 2028-06-03).</code></div>
+      <div class="block hu"><span class="lbl">👤 คน</span><span>pipeline1 พังทุก 20 นาทีตั้งแต่ 11:57 (secret ของ app cman-sharepoint-read หมดอายุ 11:40 แต่ค่าใน Variable Library ยังเป็นตัวเก่า) — แก้เสร็จ+ตรวจครบ: rotate secret ใหม่, เพิ่ม 7 บรรทัดกัน error งง ๆ ใน Notebook_2, rerun ผ่าน, ตรวจ go-live 5 มุมผ่านหมด (run เขียวต่อเนื่อง, ไฟล์ csv ลงสดใหม่, email fail หยุด), gate review/security/test อนุมัติ เหลือแค่ข้อแนะนำไม่บังคับ (ย้าย secret ไป Key Vault, ลบ key เก่าในแอป, ตั้งเตือนหมดอายุ ~มิ.ย.-ก.ค. 2028)</span></div>
+      
+    </div>
+
+    <div class="card" data-state="done" style="border-left:4px solid #22c55e">
+      <div class="top">
+        <span class="badge" style="color:#22c55e;background:#16271c;border-color:#22c55e55">✓ DONE</span>
+        
+        <span class="ref" title="อ้างอิง task นี้เวลาคุยกับ CC">#playful-reskin</span>
+        <span class="dt">29 June 2026 10:00 PM &rarr; 30 June 2026 1:00 AM</span>
+      </div>
+      <div class="id">playful-reskin</div>
+      <div class="who"><span class="tag agent">🤖 05-software-developer</span><span class="tag skill">🧩 34-frontend-design</span></div>
+      <div class="block ai"><span class="lbl">🤖 AI</span><code>Re-theme the React app to Playful Geometric (cream dot-grid, sticker cards, candy pill buttons, status pills, drifting/spinning confetti, form-on-top layout, two-line Updated At display). LOOK-ONLY proven: 06 review (logic_changed=false) + 08 verify (POST /api/status payload intercepted = no update_at, user_status preserved; CSV raw; build passes; all functions pass) + 07 security. Cleanup done: merged double &lt;thead&gt;, fixed column-header sticky, npm audit fix 5-&gt;0. Committed 3061db3, pushed main, GitHub Actions build #5 green, Azure revision cman-contract-app--playful deployed at 100% traffic and DONE — prod tested OK on 2026-06-30.</code></div>
+      <div class="block hu"><span class="lbl">👤 คน</span><span>เปลี่ยนหน้าตาเว็บเป็นธีม Playful เฉพาะหน้าตา ไม่กระทบ logic/OneLake (พิสูจน์แล้ว). commit 3061db3 + push main + Actions เขียว + deploy revision playful 100% — test prod ผ่านแล้ว เสร็จ</span></div>
+      <div class="files"><a href="../frontend/src/App.jsx" target="_blank">📎 App.jsx</a><a href="../frontend/src/components/ContractTable.jsx" target="_blank">📎 ContractTable.jsx</a><a href="../frontend/src/components/ContractForm.jsx" target="_blank">📎 ContractForm.jsx</a><a href="../frontend/src/components/ui/playful-background.tsx" target="_blank">📎 playful-background.tsx</a><a href="../design_preview/style1_playful_app.html" target="_blank">📎 prototype (approved look)</a></div>
+    </div>
+
+    <div class="card" data-state="done" style="border-left:4px solid #22c55e">
+      <div class="top">
+        <span class="badge" style="color:#22c55e;background:#16271c;border-color:#22c55e55">✓ DONE</span>
+        
+        <span class="ref" title="อ้างอิง task นี้เวลาคุยกับ CC">#playful-interactive-prototype</span>
+        <span class="dt">29 June 2026 10:33 PM &rarr; 30 June 2026 12:00 AM</span>
+      </div>
+      <div class="id">playful-interactive-prototype</div>
+      <div class="who"><span class="tag agent">🤖 general-purpose (workflow + agents)</span><span class="tag skill">🧩 34-frontend-design</span><span class="tag skill">🧩 35-webapp-testing</span></div>
+      <div class="block ai"><span class="lbl">🤖 AI</span><code>Built a fully-functional single-file Playful prototype with all 10 functions in vanilla JS, seeded with the real 194 rows from test-data. Iterated per user feedback: balanced layout, no horizontal scroll (fit all columns), form-on-top entry bar, two-line Updated At (date / 12h AM/PM), User Status pill colors (ต่อสัญญา green / ไม่ต่อสัญญา pink), pulsing badge dots, drifting+spinning header confetti, OneLake note. Each step Playwright-verified.</code></div>
+      <div class="block hu"><span class="lbl">👤 คน</span><span>ทำ prototype HTML เล่นได้จริง 194 แถว + ปรับตาม feedback (layout, ไม่ scroll, form บน, วันที่ 2 บรรทัด, สี badge, dot/confetti animate) — verify ทุกขั้นด้วย Playwright</span></div>
+      <div class="files"><a href="../design_preview/style1_playful_app.html" target="_blank">📎 playful prototype (194 rows, playable)</a></div>
+    </div>
+
+    <div class="card" data-state="done" style="border-left:4px solid #22c55e">
+      <div class="top">
+        <span class="badge" style="color:#22c55e;background:#16271c;border-color:#22c55e55">✓ DONE</span>
+        
+        <span class="ref" title="อ้างอิง task นี้เวลาคุยกับ CC">#design-mockups-3-styles</span>
+        <span class="dt">29 June 2026 10:19 PM &rarr; 29 June 2026 10:21 PM</span>
+      </div>
+      <div class="id">design-mockups-3-styles</div>
+      <div class="who"><span class="tag agent">🤖 general-purpose (workflow x3)</span><span class="tag skill">🧩 34-frontend-design</span></div>
+      <div class="block ai"><span class="lbl">🤖 AI</span><code>Built 3 self-contained HTML design mockups of the Contract Status app (Playful Geometric / Serif-Editorial / Organic-Natural) with the same sample data + a chooser page, for the user to pick a direction. User picked Playful Geometric.</code></div>
+      <div class="block hu"><span class="lbl">👤 คน</span><span>ทำ mockup HTML 3 สไตล์ให้เลือก (Playful/Serif/Organic) + หน้าเลือก — เลือก Playful</span></div>
+      <div class="files"><a href="../design_preview/index.html" target="_blank">📎 design chooser</a></div>
+    </div>
+
+    <div class="card" data-state="done" style="border-left:4px solid #22c55e">
+      <div class="top">
+        <span class="badge" style="color:#22c55e;background:#16271c;border-color:#22c55e55">✓ DONE</span>
+        
+        <span class="ref" title="อ้างอิง task นี้เวลาคุยกับ CC">#table-features-resize-filter-csv</span>
+        <span class="dt">9 May 2026 9:47 PM</span>
+      </div>
+      <div class="id">table-features-resize-filter-csv</div>
+      <div class="who"><span class="tag agent">🤖 05-software-developer</span></div>
+      <div class="block ai"><span class="lbl">🤖 AI</span><code>Table UX features: animated background, magnetic buttons, resizable columns (drag handle, min 60px), column filters (text + dropdown, active-count + clear-all), and client-side Export CSV (BOM, filtered rows, dated filename).</code></div>
+      <div class="block hu"><span class="lbl">👤 คน</span><span>เพิ่มฟีเจอร์ตาราง — พื้นหลัง animate, ปุ่มแม่เหล็ก, ลากปรับคอลัมน์, filter, Export CSV</span></div>
+      <div class="files"><a href="../frontend/src/components/ContractTable.jsx" target="_blank">📎 ContractTable.jsx</a></div>
+    </div>
+
+    <div class="card" data-state="done" style="border-left:4px solid #22c55e">
+      <div class="top">
+        <span class="badge" style="color:#22c55e;background:#16271c;border-color:#22c55e55">✓ DONE</span>
+        
+        <span class="ref" title="อ้างอิง task นี้เวลาคุยกับ CC">#azure-container-apps-deploy</span>
+        <span class="dt">30 April 2026 9:23 PM &rarr; 30 April 2026 10:25 PM</span>
+      </div>
+      <div class="id">azure-container-apps-deploy</div>
+      <div class="who"><span class="tag agent">🤖 10-devops</span><span class="tag skill">🧩 10-deploy-checklist</span></div>
+      <div class="block ai"><span class="lbl">🤖 AI</span><code>Dockerized single-container build (Node builds React → Python serves FastAPI + static dist on port 8000) and deployed to Azure Container Apps (cman-contract-app, Southeast Asia); production API URL config + Azure AD Easy Auth (@chememan.com only).</code></div>
+      <div class="block hu"><span class="lbl">👤 คน</span><span>Deploy ขึ้น Azure Container Apps (container เดียว) + จำกัด login @chememan.com</span></div>
+      <div class="files"><a href="../Dockerfile" target="_blank">📎 Dockerfile</a></div>
+    </div>
+
+    <div class="card" data-state="done" style="border-left:4px solid #22c55e">
+      <div class="top">
+        <span class="badge" style="color:#22c55e;background:#16271c;border-color:#22c55e55">✓ DONE</span>
+        
+        <span class="ref" title="อ้างอิง task นี้เวลาคุยกับ CC">#github-actions-cicd</span>
+        <span class="dt">30 April 2026 9:38 PM</span>
+      </div>
+      <div class="id">github-actions-cicd</div>
+      <div class="who"><span class="tag agent">🤖 10-devops</span><span class="tag skill">🧩 10-deploy-checklist</span></div>
+      <div class="block ai"><span class="lbl">🤖 AI</span><code>GitHub Actions workflow: on push to main, build the Docker image and push cman-contract-app:latest to ACR (cmancontractregistry). Azure revision still forced manually.</code></div>
+      <div class="block hu"><span class="lbl">👤 คน</span><span>CI/CD GitHub Actions — push main แล้ว build+push image ขึ้น ACR อัตโนมัติ</span></div>
+      <div class="files"><a href="../.github/workflows/deploy.yml" target="_blank">📎 deploy.yml</a></div>
+    </div>
+
+    <div class="card" data-state="done" style="border-left:4px solid #22c55e">
+      <div class="top">
+        <span class="badge" style="color:#22c55e;background:#16271c;border-color:#22c55e55">✓ DONE</span>
+        
+        <span class="ref" title="อ้างอิง task นี้เวลาคุยกับ CC">#react-frontend-fullapp</span>
+        <span class="dt">30 April 2026 9:03 PM</span>
+      </div>
+      <div class="id">react-frontend-fullapp</div>
+      <div class="who"><span class="tag agent">🤖 main</span></div>
+      <div class="block ai"><span class="lbl">🤖 AI</span><code>Complete React (Vite) frontend wired to the FastAPI backend: progressive loading, ContractForm (DocSearch combobox + save), ContractTable, optimistic save + row flash + toast — full load→fill→save→OneLake flow.</code></div>
+      <div class="block hu"><span class="lbl">👤 คน</span><span>Frontend React ครบ ต่อกับ backend — โหลด→กรอก→บันทึก→OneLake ทำงานครบ</span></div>
+      <div class="files"><a href="../frontend/src/App.jsx" target="_blank">📎 App.jsx</a></div>
+    </div>
+
+    <div class="card" data-state="done" style="border-left:4px solid #22c55e">
+      <div class="top">
+        <span class="badge" style="color:#22c55e;background:#16271c;border-color:#22c55e55">✓ DONE</span>
+        
+        <span class="ref" title="อ้างอิง task นี้เวลาคุยกับ CC">#fastapi-backend</span>
+        <span class="dt">30 April 2026 5:03 PM</span>
+      </div>
+      <div class="id">fastapi-backend</div>
+      <div class="who"><span class="tag agent">🤖 main</span></div>
+      <div class="block ai"><span class="lbl">🤖 AI</span><code>FastAPI backend: Azure AD client-credentials auth, OneLake/Delta Lake read+write, 6 endpoints, 4 in-memory caches, background overwrite write for gold_manual_contract_status; update_at as timestamp_ntz.</code></div>
+      <div class="block hu"><span class="lbl">👤 คน</span><span>Backend FastAPI — auth Azure AD, อ่าน/เขียน OneLake, 6 endpoint, cache, เขียน status เบื้องหลัง</span></div>
+      <div class="files"><a href="../backend/main.py" target="_blank">📎 backend/main.py</a></div>
+    </div>
+
+    <div class="card" data-state="done" style="border-left:4px solid #22c55e">
+      <div class="top">
+        <span class="badge" style="color:#22c55e;background:#16271c;border-color:#22c55e55">✓ DONE</span>
+        
+        <span class="ref" title="อ้างอิง task นี้เวลาคุยกับ CC">#streamlit-app</span>
+        <span class="dt">30 April 2026 4:42 PM</span>
+      </div>
+      <div class="id">streamlit-app</div>
+      <div class="who"><span class="tag agent">🤖 main</span></div>
+      <div class="block ai"><span class="lbl">🤖 AI</span><code>Initial production Streamlit contract management app (later kept as reference only after the React rewrite).</code></div>
+      <div class="block hu"><span class="lbl">👤 คน</span><span>แอป Streamlit ตัวแรก (ภายหลังเก็บเป็น reference หลังเขียนใหม่เป็น React)</span></div>
+      <div class="files"><a href="../app.py" target="_blank">📎 app.py</a></div>
+    </div>
+  <div class="meta" style="margin-top:18px">
+    อ้างอิง task เวลาคุยกับ CC: พิมพ์ <code>#&lt;id&gt;</code> เช่น <code>#phase2-agents</code><br>
+    source of truth: <code>tracker/pending.json</code> — AI อ่านไฟล์นี้ก่อนทำงานทุกครั้ง แล้วอัปเดต state เสมอ. แก้ json แล้วรัน <code>python tracker/render_pending.py</code>
+  </div>
+  <script>
+    const btns = document.querySelectorAll('.fbtn');
+    btns.forEach(b => b.addEventListener('click', () => {
+      btns.forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      const f = b.dataset.f;
+      document.querySelectorAll('.card').forEach(c => {
+        c.style.display = (f === 'all' || c.dataset.state === f) ? '' : 'none';
+      });
+    }));
+  </script>
+</body></html>

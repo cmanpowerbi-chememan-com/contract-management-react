@@ -1,0 +1,151 @@
+{
+  "project": "02.contract_management_streamlit_prd",
+  "title": "Contract Status — procurement tracking web app (FastAPI + React, OneLake)",
+  "updated": "2026-07-21T13:40:00+0700",
+  "tasks": [
+    {
+      "id": "fix-lost-update-5-steps",
+      "state": "doing",
+      "created": "2026-07-27T12:00:00+0700",
+      "updated": "2026-07-27T12:00:00+0700",
+      "agent": "05-software-developer x2 (inline)",
+      "skills": ["30-tdd", "08-test-checklist"],
+      "files": [
+        { "path": "../backend/main.py", "label": "backend write path" },
+        { "path": "../../02.contract_management_email_button/function_app.py", "label": "confirm function" }
+      ],
+      "ai": "USER APPROVED ALL 5 fixes for [lost-update-email-button-vs-web]: (1) restore 2 rows from v190 (script scratchpad/restore_rows.py, dry-run default, --live to write, aborts if docs reappeared) (2) restart container app right after (3) backend read-before-write upsert + serialized bg writes + cache converge + 5min TTL on _status_df (05-agent, TDD incl. red-green regression reproducing v191 wipe) (4) function: tz-naive update_at, drop schema_mode overwrite, remove TEST VS CODE text (5) GET->confirm-page + POST-only write (anti-SafeLinks-scanner). Both implementers running background. Then: combined 06+07+08 gate -> explicit deploy AskUserQuestion -> restore+restart -> git push backend (Actions+revision) -> function deploy -> live E2E (button row survives web save) -> verify email stops.",
+      "human": "อนุมัติแก้ครบ 5 ข้อแล้ว — กำลังเขียนโค้ด 2 ทีม (backend เว็บ: อ่านตารางล่าสุดก่อนเขียน / function ปุ่ม: หน้ายืนยัน+timezone) แบบเขียนเทสก่อน เสร็จแล้วจะผ่าน gate ตรวจ แล้วถามยืนยันก่อน deploy จริง"
+    },
+    {
+      "id": "lost-update-email-button-vs-web",
+      "state": "done",
+      "created": "2026-07-27T11:00:00+0700",
+      "updated": "2026-07-27T11:30:00+0700",
+      "agent": "main (40-diagnose)",
+      "skills": ["40-diagnose"],
+      "files": [
+        { "path": "../../02.contract_management_email_button/function_app.py", "label": "confirm function" },
+        { "path": "../backend/main.py", "label": "web backend" }
+      ],
+      "ai": "INCIDENT: user clicked email-button confirm (dok 3110000188) 7/20 10:35, page success, but 7/27 email still alerts + web missing it. Delta history PROVES lost update: v188-190 (7/20 03:35-03:36Z, delta-rs py-1.5.0 = cman-email-purchase-confirm function) wrote 3110000188 + 3110000193 user_status=totosanya; v191 (7/22 02:08Z, py-1.6.1 = web backend full-overwrite from stale in-memory _status_df loaded pre-7/20) REMOVED both rows (rowcount back to 194). Root cause: TWO writers both doing full-table overwrite; backend _status_df never expires and backend never re-reads before write. Success page shows 'TEST VS CODE' leftover string in function html (cosmetic). Also in function: update_at written tz-AWARE (schema is timestamp_ntz) + GET-with-side-effect links (SafeLinks scanner could auto-click both actions incl. mai-totosanya). Historical audit v150-192 DONE: damage = exactly these 2 docs (3110000082 was lost at v157 but later restored; nothing else missing). USER CHOSE REPORT-ONLY — NO fix applied: rows NOT restored, backend overwrite-from-stale-cache NOT fixed, function TEST-text/tz-aware/GET-side-effect NOT fixed. STANDING RISK: any web Save can wipe future email-button clicks again; 3110000188+3110000193 keep alerting until restored or re-clicked AFTER a backend cache refresh. Restore recipe ready: rows recoverable from table version 190 (time travel), then restart container app (or /api/status/refresh) BEFORE next web save.",
+      "human": "ปุ่มยืนยันในอีเมลเขียนลงตารางสำเร็จจริง (7/20) แต่ 2 วันถัดมาเว็บ Save แล้วเอา cache เก่าทับทั้งตาราง ทำให้แถวหาย 2 สัญญา (3110000188, 3110000193) — email เลยแจ้งซ้ำและเว็บไม่ขึ้น กำลังไล่ประวัติหาแถวอื่นที่เคยหายแบบเดียวกัน รอเลือกวิธีแก้"
+    },
+    {
+      "id": "fix-pipeline1-badzipfile",
+      "state": "done",
+      "created": "2026-07-21T13:40:00+0700",
+      "updated": "2026-07-21T16:10:00+0700",
+      "agent": "main (40-diagnose)",
+      "skills": ["40-diagnose"],
+      "files": [],
+      "ai": "INCIDENT: purchase_workspace pipeline1 scheduled runs fail every 20min since 11:57 (first run after 11:40). Root cause CONFIRMED: app cman-sharepoint-read (770a44d2) client secret 'd4B' expired 2026-07-21T04:40Z; Variable Library common_config_variables_sharepoint_read still holds it. Notebook_2 downloads MNL_M_COMPANY.xlsx from SP /teams/DataWarehouse via Graph with no status check -> error JSON fed to pd.read_excel -> BadZipFile. File itself healthy (verified download+read OK with backend/.env SP). Newer secret 'Kb1' exists (2026-06-04..2028-06-03) but its value was never put into the Variable Library. FIXED+VERIFIED 2026-07-21: new secret via az credential reset --append (value file-only, deleted after use, never in chat); varlib client_secret rotated via updateDefinition, verified re-fetch + E2E token->site->download 200 PK; Notebook_2 hardened +7 guard lines (token/site_id null-checks, raise_for_status, PK magic) diff +7/-0 Thai-intact, pushed, landed-markers OK; manual rerun job 6eec6e79 Completed. GOLIVE VERIFY workflow 5/5 PASS (nb landed, secret e2e, 7 post-fix runs Completed newest 08:36Z, mnl_n_company.csv fresh 08:36Z 11 rows, failure emails stopped 06:37Z). gate:APPROVE-WITH-SUGGESTIONS (06 approve-sugg / 07 approve-sugg / 08 approve; retry after first gate died with session). Remediated: dead-secret scratch file deleted, value added to hermes mask. Open suggestions (not blocking): Key Vault/cert creds instead of plaintext varlib secret; az ad app credential delete old expired keys on 770a44d2; expiry reminder (new secret ~2028-07; Kb1 2028-06-03).",
+      "human": "pipeline1 พังทุก 20 นาทีตั้งแต่ 11:57 (secret ของ app cman-sharepoint-read หมดอายุ 11:40 แต่ค่าใน Variable Library ยังเป็นตัวเก่า) — แก้เสร็จ+ตรวจครบ: rotate secret ใหม่, เพิ่ม 7 บรรทัดกัน error งง ๆ ใน Notebook_2, rerun ผ่าน, ตรวจ go-live 5 มุมผ่านหมด (run เขียวต่อเนื่อง, ไฟล์ csv ลงสดใหม่, email fail หยุด), gate review/security/test อนุมัติ เหลือแค่ข้อแนะนำไม่บังคับ (ย้าย secret ไป Key Vault, ลบ key เก่าในแอป, ตั้งเตือนหมดอายุ ~มิ.ย.-ก.ค. 2028)"
+    },
+    {
+      "id": "playful-reskin",
+      "state": "done",
+      "created": "2026-06-29T22:00:00+0700",
+      "updated": "2026-06-30T01:00:00+0700",
+      "agent": "05-software-developer",
+      "skills": ["34-frontend-design"],
+      "files": [
+        { "path": "../frontend/src/App.jsx", "label": "App.jsx" },
+        { "path": "../frontend/src/components/ContractTable.jsx", "label": "ContractTable.jsx" },
+        { "path": "../frontend/src/components/ContractForm.jsx", "label": "ContractForm.jsx" },
+        { "path": "../frontend/src/components/ui/playful-background.tsx", "label": "playful-background.tsx" },
+        { "path": "../design_preview/style1_playful_app.html", "label": "prototype (approved look)" }
+      ],
+      "ai": "Re-theme the React app to Playful Geometric (cream dot-grid, sticker cards, candy pill buttons, status pills, drifting/spinning confetti, form-on-top layout, two-line Updated At display). LOOK-ONLY proven: 06 review (logic_changed=false) + 08 verify (POST /api/status payload intercepted = no update_at, user_status preserved; CSV raw; build passes; all functions pass) + 07 security. Cleanup done: merged double <thead>, fixed column-header sticky, npm audit fix 5->0. Committed 3061db3, pushed main, GitHub Actions build #5 green, Azure revision cman-contract-app--playful deployed at 100% traffic and DONE — prod tested OK on 2026-06-30.",
+      "human": "เปลี่ยนหน้าตาเว็บเป็นธีม Playful เฉพาะหน้าตา ไม่กระทบ logic/OneLake (พิสูจน์แล้ว). commit 3061db3 + push main + Actions เขียว + deploy revision playful 100% — test prod ผ่านแล้ว เสร็จ"
+    },
+    {
+      "id": "streamlit-app",
+      "state": "done",
+      "created": "2026-04-30T16:42:42+0700",
+      "updated": "2026-04-30T16:42:42+0700",
+      "agent": "main",
+      "skills": [],
+      "files": [{ "path": "../app.py", "label": "app.py" }],
+      "ai": "Initial production Streamlit contract management app (later kept as reference only after the React rewrite).",
+      "human": "แอป Streamlit ตัวแรก (ภายหลังเก็บเป็น reference หลังเขียนใหม่เป็น React)"
+    },
+    {
+      "id": "fastapi-backend",
+      "state": "done",
+      "created": "2026-04-30T17:03:31+0700",
+      "updated": "2026-04-30T17:03:31+0700",
+      "agent": "main",
+      "skills": [],
+      "files": [{ "path": "../backend/main.py", "label": "backend/main.py" }],
+      "ai": "FastAPI backend: Azure AD client-credentials auth, OneLake/Delta Lake read+write, 6 endpoints, 4 in-memory caches, background overwrite write for gold_manual_contract_status; update_at as timestamp_ntz.",
+      "human": "Backend FastAPI — auth Azure AD, อ่าน/เขียน OneLake, 6 endpoint, cache, เขียน status เบื้องหลัง"
+    },
+    {
+      "id": "react-frontend-fullapp",
+      "state": "done",
+      "created": "2026-04-30T21:03:22+0700",
+      "updated": "2026-04-30T21:03:22+0700",
+      "agent": "main",
+      "skills": [],
+      "files": [{ "path": "../frontend/src/App.jsx", "label": "App.jsx" }],
+      "ai": "Complete React (Vite) frontend wired to the FastAPI backend: progressive loading, ContractForm (DocSearch combobox + save), ContractTable, optimistic save + row flash + toast — full load→fill→save→OneLake flow.",
+      "human": "Frontend React ครบ ต่อกับ backend — โหลด→กรอก→บันทึก→OneLake ทำงานครบ"
+    },
+    {
+      "id": "azure-container-apps-deploy",
+      "state": "done",
+      "created": "2026-04-30T21:23:40+0700",
+      "updated": "2026-04-30T22:25:14+0700",
+      "agent": "10-devops",
+      "skills": ["10-deploy-checklist"],
+      "files": [{ "path": "../Dockerfile", "label": "Dockerfile" }],
+      "ai": "Dockerized single-container build (Node builds React → Python serves FastAPI + static dist on port 8000) and deployed to Azure Container Apps (cman-contract-app, Southeast Asia); production API URL config + Azure AD Easy Auth (@chememan.com only).",
+      "human": "Deploy ขึ้น Azure Container Apps (container เดียว) + จำกัด login @chememan.com"
+    },
+    {
+      "id": "github-actions-cicd",
+      "state": "done",
+      "created": "2026-04-30T21:38:01+0700",
+      "updated": "2026-04-30T21:38:01+0700",
+      "agent": "10-devops",
+      "skills": ["10-deploy-checklist"],
+      "files": [{ "path": "../.github/workflows/deploy.yml", "label": "deploy.yml" }],
+      "ai": "GitHub Actions workflow: on push to main, build the Docker image and push cman-contract-app:latest to ACR (cmancontractregistry). Azure revision still forced manually.",
+      "human": "CI/CD GitHub Actions — push main แล้ว build+push image ขึ้น ACR อัตโนมัติ"
+    },
+    {
+      "id": "table-features-resize-filter-csv",
+      "state": "done",
+      "created": "2026-05-09T21:47:27+0700",
+      "updated": "2026-05-09T21:47:27+0700",
+      "agent": "05-software-developer",
+      "skills": [],
+      "files": [{ "path": "../frontend/src/components/ContractTable.jsx", "label": "ContractTable.jsx" }],
+      "ai": "Table UX features: animated background, magnetic buttons, resizable columns (drag handle, min 60px), column filters (text + dropdown, active-count + clear-all), and client-side Export CSV (BOM, filtered rows, dated filename).",
+      "human": "เพิ่มฟีเจอร์ตาราง — พื้นหลัง animate, ปุ่มแม่เหล็ก, ลากปรับคอลัมน์, filter, Export CSV"
+    },
+    {
+      "id": "design-mockups-3-styles",
+      "state": "done",
+      "created": "2026-06-29T22:19:00+0700",
+      "updated": "2026-06-29T22:21:00+0700",
+      "agent": "general-purpose (workflow x3)",
+      "skills": ["34-frontend-design"],
+      "files": [{ "path": "../design_preview/index.html", "label": "design chooser" }],
+      "ai": "Built 3 self-contained HTML design mockups of the Contract Status app (Playful Geometric / Serif-Editorial / Organic-Natural) with the same sample data + a chooser page, for the user to pick a direction. User picked Playful Geometric.",
+      "human": "ทำ mockup HTML 3 สไตล์ให้เลือก (Playful/Serif/Organic) + หน้าเลือก — เลือก Playful"
+    },
+    {
+      "id": "playful-interactive-prototype",
+      "state": "done",
+      "created": "2026-06-29T22:33:00+0700",
+      "updated": "2026-06-30T00:00:00+0700",
+      "agent": "general-purpose (workflow + agents)",
+      "skills": ["34-frontend-design", "35-webapp-testing"],
+      "files": [{ "path": "../design_preview/style1_playful_app.html", "label": "playful prototype (194 rows, playable)" }],
+      "ai": "Built a fully-functional single-file Playful prototype with all 10 functions in vanilla JS, seeded with the real 194 rows from test-data. Iterated per user feedback: balanced layout, no horizontal scroll (fit all columns), form-on-top entry bar, two-line Updated At (date / 12h AM/PM), User Status pill colors (ต่อสัญญา green / ไม่ต่อสัญญา pink), pulsing badge dots, drifting+spinning header confetti, OneLake note. Each step Playwright-verified.",
+      "human": "ทำ prototype HTML เล่นได้จริง 194 แถว + ปรับตาม feedback (layout, ไม่ scroll, form บน, วันที่ 2 บรรทัด, สี badge, dot/confetti animate) — verify ทุกขั้นด้วย Playwright"
+    }
+  ]
+}

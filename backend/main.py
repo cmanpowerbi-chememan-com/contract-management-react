@@ -1,4 +1,6 @@
+import logging
 import os
+import queue
 import threading
 from datetime import datetime
 
@@ -68,9 +70,22 @@ _docnums_cache: dict = {"data": None, "expires_at": 0}
 _docnums_lock = threading.Lock()
 
 # In-memory DataFrame of gold_manual_contract_status — shared between GET and POST
-# so save never needs to re-read from OneLake
+# so save never needs to re-read from OneLake. TTL matches _contracts_cache pattern
+# so a stale cache (another writer changed the table) self-heals on the next GET.
 _status_df: list[dict] | None = None
 _status_lock = threading.Lock()
+_status_expires_at: float = 0
+_STATUS_TTL = 300  # 5 min
+
+# Background write queue — a single worker processes saves strictly in the order
+# they were submitted, so two rapid POSTs can never interleave a read-merge-write
+# cycle (the later save always wins for the same doc). Each job re-reads the
+# CURRENT table from OneLake and replaces only that doc's row — it never dumps
+# the whole in-memory cache, so rows another writer (e.g. the email-confirm
+# Azure Function) added between reads are preserved.
+_write_queue: "queue.Queue" = queue.Queue()
+_write_worker_thread: threading.Thread | None = None
+_write_worker_start_lock = threading.Lock()
 
 
 def get_token() -> str:
@@ -157,6 +172,13 @@ def get_doc_numbers():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _empty_status_df() -> pd.DataFrame:
+    return pd.DataFrame(columns=[
+        "purchasing_doc_no", "user_status", "purchaser_status",
+        "comment", "new_purchasing_doc_no", "update_at",
+    ])
+
+
 def _load_status_df(opts: dict) -> pd.DataFrame:
     """Load gold_manual_contract_status from OneLake and normalise types."""
     try:
@@ -164,10 +186,7 @@ def _load_status_df(opts: dict) -> pd.DataFrame:
             f"{ONELAKE_BASE}/gold_manual_contract_status", storage_options=opts
         ).to_pandas()
     except Exception:
-        return pd.DataFrame(columns=[
-            "purchasing_doc_no", "user_status", "purchaser_status",
-            "comment", "new_purchasing_doc_no", "update_at",
-        ])
+        return _empty_status_df()
 
     if "updated_timestamp" in df.columns and "update_at" not in df.columns:
         df = df.rename(columns={"updated_timestamp": "update_at"})
@@ -201,13 +220,71 @@ def _df_to_api(df: pd.DataFrame) -> list[dict]:
     return out.to_dict(orient="records")
 
 
+def _merge_and_write(doc_no: str, new_row: pd.DataFrame, opts: dict) -> pd.DataFrame:
+    """Read-before-write: re-read the CURRENT table from OneLake, drop only the
+    row(s) for `doc_no`, append `new_row`, write back. Never overwrites with the
+    stale in-memory cache — protects rows any other writer added in between."""
+    current = _load_status_df(opts)
+    merged = pd.concat(
+        [new_row, current[current["purchasing_doc_no"] != doc_no]],
+        ignore_index=True,
+    )
+    merged["update_at"] = pd.to_datetime(merged["update_at"])
+    for col in ["purchasing_doc_no", "user_status", "purchaser_status",
+                "comment", "new_purchasing_doc_no"]:
+        merged[col] = merged[col].fillna("").astype(str)
+    write_deltalake(
+        f"{ONELAKE_BASE}/gold_manual_contract_status",
+        merged, mode="overwrite", schema_mode="overwrite",
+        storage_options=opts,
+    )
+    return merged
+
+
+def _write_worker() -> None:
+    """Single background worker — drains `_write_queue` strictly in FIFO order
+    so concurrent saves can never interleave a read-merge-write cycle."""
+    global _status_df, _status_expires_at
+    import time
+    while True:
+        job = _write_queue.get()
+        try:
+            if job is None:  # shutdown sentinel
+                return
+            doc_no, new_row, opts = job
+            try:
+                merged = _merge_and_write(doc_no, new_row, opts)
+                with _status_lock:
+                    _status_df = merged
+                    _status_expires_at = time.time() + _STATUS_TTL
+            except Exception as ex:
+                logging.error("OneLake write failed for %s: %s", doc_no, ex)
+        finally:
+            _write_queue.task_done()
+
+
+def _ensure_write_worker() -> None:
+    """Lazily start the single background write worker (idempotent)."""
+    global _write_worker_thread
+    with _write_worker_start_lock:
+        if _write_worker_thread is None or not _write_worker_thread.is_alive():
+            _write_worker_thread = threading.Thread(target=_write_worker, daemon=True)
+            _write_worker_thread.start()
+
+
 @app.get("/api/status")
 def get_status():
-    global _status_df
+    import time
+    global _status_df, _status_expires_at
     with _status_lock:
-        if _status_df is None:
-            opts = storage_options()
-            _status_df = _load_status_df(opts)
+        stale = _status_df is None or time.time() >= _status_expires_at
+    if stale:
+        opts = storage_options()
+        fresh = _load_status_df(opts)
+        with _status_lock:
+            _status_df = fresh
+            _status_expires_at = time.time() + _STATUS_TTL
+    with _status_lock:
         df = _status_df.copy()
     return {"data": _df_to_api(df)}
 
@@ -215,11 +292,13 @@ def get_status():
 @app.get("/api/status/refresh")
 def refresh_status():
     """Force reload from OneLake — called by the Refresh button."""
-    global _status_df
+    import time
+    global _status_df, _status_expires_at
     opts = storage_options()
     fresh = _load_status_df(opts)
     with _status_lock:
         _status_df = fresh
+        _status_expires_at = time.time() + _STATUS_TTL
         df = _status_df.copy()
     return {"data": _df_to_api(df)}
 
@@ -255,30 +334,24 @@ def save_status(entry: StatusEntry):
                     "comment", "new_purchasing_doc_no"]:
             new_row[col] = new_row[col].fillna("").astype(str)
 
-        # Update in-memory cache immediately — UI responds at once
+        # Update in-memory cache immediately — UI responds at once.
+        # No OneLake read here: on cache-miss, start from an empty skeleton
+        # (not a synchronous OneLake load) so the request path stays fast.
+        # The background worker below re-reads OneLake for real before writing.
         with _status_lock:
             if _status_df is None:
-                _status_df = _load_status_df(opts)
+                _status_df = _empty_status_df()
             _status_df = pd.concat(
                 [new_row, _status_df[_status_df["purchasing_doc_no"] != entry.purchasing_doc_no]],
                 ignore_index=True,
             )
             _status_df["update_at"] = pd.to_datetime(_status_df["update_at"])
-            df_to_write = _status_df.copy()
 
-        # Write to OneLake in background — same pattern as Streamlit original
-        def _write(df: pd.DataFrame, o: dict) -> None:
-            try:
-                write_deltalake(
-                    f"{ONELAKE_BASE}/gold_manual_contract_status",
-                    df, mode="overwrite", schema_mode="overwrite",
-                    storage_options=o,
-                )
-            except Exception as ex:
-                import logging
-                logging.error("OneLake write failed for %s: %s", entry.purchasing_doc_no, ex)
-
-        threading.Thread(target=_write, args=(df_to_write, opts), daemon=False).start()
+        # Queue the OneLake write — a single background worker processes saves
+        # in order (read-before-write, merges only this doc's row) so it can
+        # never clobber rows another writer added since the cache was loaded.
+        _ensure_write_worker()
+        _write_queue.put((entry.purchasing_doc_no, new_row.copy(), opts))
 
         return {"ok": True, "update_at": now_str}
     except Exception as e:
