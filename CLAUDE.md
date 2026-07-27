@@ -7,7 +7,8 @@ Convert the Streamlit contract management app into a proper web app:
 
 ## Stack
 - **Backend**: FastAPI + uvicorn, `deltalake`, `pandas`, `pytz`, `python-dotenv`
-- **Frontend**: React 19 + Vite 6, axios, CSS Modules
+- **Frontend**: React 19 + Vite 6, Tailwind CSS v3, TypeScript (tsx), framer-motion, clsx, tailwind-merge
+- **UI components**: `src/components/ui/` — BackgroundGradientAnimation, MagneticButton, GradientBackground
 - **Storage**: Microsoft Fabric OneLake via Delta Lake
 - **Auth**: Azure AD client credentials → bearer token, cached 3000s
 
@@ -28,19 +29,28 @@ All components built and tested end-to-end. Full flow works: load → fill form 
 │   ├── public/
 │   │   └── loading_wizard.png   # (kept but unused — replaced by CSS spinner)
 │   ├── src/
-│   │   ├── index.css            # Global styles — Aurora background, Sora font
+│   │   ├── index.css            # Global styles — Tailwind directives + Sora font
 │   │   ├── main.jsx             # React entry point
-│   │   ├── App.jsx              # Main app — progressive loading, toast, flash
+│   │   ├── App.jsx              # Main app — BackgroundGradientAnimation wrapper
 │   │   ├── App.module.css       # Layout, toast, error screen styles
+│   │   ├── lib/
+│   │   │   └── utils.ts         # cn() = clsx + tailwind-merge
 │   │   ├── services/
 │   │   │   └── api.js           # Axios calls to FastAPI — all 6 endpoints
 │   │   └── components/
+│   │       ├── ui/
+│   │       │   ├── background-gradient-animation.tsx  # Mouse-interactive mesh gradient bg
+│   │       │   ├── magnetic-button.tsx                # framer-motion magnetic effect
+│   │       │   └── gradient-background.tsx            # Animated gradient background
 │   │       ├── LoadingOverlay.jsx        # Pure CSS spinner overlay
 │   │       ├── LoadingOverlay.module.css
-│   │       ├── ContractForm.jsx          # Form with searchable Doc No combobox
+│   │       ├── ContractForm.jsx          # Form — MagneticButton on Save
 │   │       ├── ContractForm.module.css
-│   │       ├── ContractTable.jsx         # Table with row flash + refresh
+│   │       ├── ContractTable.jsx         # Table — filters, resize, Export CSV
 │   │       └── ContractTable.module.css
+│   ├── tailwind.config.js   # Tailwind v3 + animation keyframes
+│   ├── postcss.config.js    # PostCSS for Tailwind
+│   ├── tsconfig.json        # TypeScript config (supports .tsx alongside .jsx)
 │   ├── index.html           # Sora font imported here
 │   └── package.json
 ├── icon/
@@ -94,11 +104,13 @@ Four independent caches, each with a `threading.Lock`:
 - `_docnums_cache` — silver_sap_tct_header doc numbers, 5 min TTL
 - `_status_df` — gold_manual_contract_status as a pandas DataFrame, never auto-expires; updated on every POST and force-reloaded by `/api/status/refresh`
 
-### Save flow (background write — Option A)
-1. Acquire `_status_lock`; prepend new row, drop old row for same `purchasing_doc_no`
-2. Release lock; return `{"ok": True, "update_at": now_str}` immediately (~490ms warm)
-3. Background daemon thread calls `write_deltalake(..., mode="overwrite", schema_mode="overwrite")`
-4. First save after cold start is ~6s (loads `_status_df` from OneLake inside the lock)
+### Save flow (read-before-write queue — since 2026-07-27, replaces Option A)
+1. Acquire `_status_lock`; update `_status_df` optimistically (prepend new row, drop old row for same `purchasing_doc_no`); return `{"ok": True, "update_at": now_str}` immediately (~490ms)
+2. Enqueue ONLY the new row onto `_write_queue`; a single FIFO daemon worker processes jobs in order
+3. Worker per job: **re-reads the CURRENT table from OneLake** → drops only that doc's row → appends the new row → `write_deltalake(mode="overwrite")` → replaces `_status_df` with the merged result (cache converges to table)
+4. `_status_df` also has a 5-min TTL (like `_contracts_cache`) so GET /api/status picks up rows written by other writers (email-button function) without manual refresh
+
+**Why (incident 2026-07-22, Delta v191):** the old flow dumped the whole in-memory cache over the table; a save from a stale cache wiped 2 rows the email-button function had written (docs 3110000188/3110000193, restored from v190). Never write the whole cache — always merge against a fresh read.
 
 **Why full overwrite, not MERGE**: Delta MERGE requires multiple OneLake round-trips over HTTPS and proved ~14s on this unpartitioned small table — slower than full overwrite at ~8s.
 
@@ -128,12 +140,15 @@ All string columns: `fillna("").astype(str)` before writing.
 ## Frontend — React
 
 ### Theme — Aurora Mesh Gradient
-- Background: `#0f0f1a` dark navy + animated aurora (CSS `::before` on `body`)
+- Background: `BackgroundGradientAnimation` component — 5 animated blobs, mouse-interactive, dark dim veil overlay
 - Font: **Sora** (loaded in `index.html`)
-- Inputs/Select: glass morphism `rgba(255,255,255,0.05)` + backdrop blur
-- Input text (Comment & เลขสัญญาใหม่): `#a855f7` purple
-- Button Save: gradient cyan `#06b6d4` → purple `#a855f7` with glow on hover
-- Title gradient: white → cyan → purple (shimmer)
+- Panels: purple-navy glass `rgba(30,27,60,0.82)` + `backdrop-filter: blur(24px)` + subtle inset highlight
+- Inputs/Select: dark fill `rgba(15,12,35,0.6)` + slate border
+- Input text: `#e2e8f0` (slate-200) — easy on eyes
+- Labels: sky blue `#7dd3fc`
+- Button Save + Export CSV: gradient cyan `#06b6d4` → purple `#a855f7` + **MagneticButton** (framer-motion)
+- Title gradient: white → cyan → purple (shimmer, 2.2rem)
+- Section headers: 1.25rem gradient; column headers: 0.75rem sky blue `#7dd3fc`
 
 ### App.jsx — progressive loading strategy
 - Show UI after fast endpoints respond (status + options, ~1-2s); spinner disappears then
@@ -164,6 +179,10 @@ Pure CSS spinner (no image dependency):
 - Row flash: `.flashRow` CSS animation `#FFE3E1 → transparent` over 6s; key includes `flashTick` to remount on each save
 - Empty state: centered message when no statuses loaded
 - "↺ Refresh data" button calls `onRefresh` → `refreshStatus()` → force OneLake reload via `/api/status/refresh`
+- **Resizable columns**: drag handle on right edge of each `<th>`; min width 60px; stored in `colWidths` state
+- **Column filters**: second sticky `<thead>` row — text input (substring) for Doc No/Name/Comment/etc; dropdown (exact) for User Status/Purchaser Status; active filter count badge + clear-all pill
+- **Vertical scroll**: `max-height: 60vh`, both headers rows sticky (`position: sticky`)
+- **Export CSV button**: `MagneticButton` with same gradient as Save; exports `filteredRows` with BOM (Thai-safe in Excel); filename `contract_status_YYYY-MM-DD.csv`
 
 ### API service (`src/services/api.js`)
 ```js
@@ -290,7 +309,10 @@ MERGE is slower than overwrite for small unpartitioned tables over HTTPS OneLake
 Vite may pick port 5174 if 5173 is taken. `main.py` CORS list includes both. If adding a new dev port, add it to `allow_origins`.
 
 ### Cold start save latency
-First POST after server restart loads `_status_df` from OneLake inside the lock (~6s). Subsequent POSTs: ~490ms. This is expected.
+POST responds fast always (~490ms); on a cold-start save the just-saved row may take ~1-8s to appear for OTHER viewers (background worker read+write), and the saver's own UI shows it instantly (optimistic state). This is expected.
+
+### Dual writers on gold_manual_contract_status (residual race — accepted)
+TWO systems write this table: this backend (queue worker, read-merge-write) and the email-confirm Azure Function (`c:\02.contract_management_email_button`, direct read-merge-write per click). Each re-reads before writing, but a simultaneous write pair within the same few-second window is still last-writer-wins for the whole table (one row can revert). Accepted at current scale; recoverable via Delta time travel (see incident 2026-07-22, v190/v191). Long-term fix if it ever bites again: make the function call `POST /api/status`-style endpoint on the web backend so the queue worker is the SOLE writer. Never reintroduce full-cache dumps.
 
 ---
 
@@ -352,7 +374,8 @@ Claude updates ROWS in the script then runs it.
 ## Planned features
 
 ### Export Data — Download Button on Web
-- User clicks a download button on the web UI to export contract data as Excel/CSV
-- Status: In Progress, cut-off 15-Jun-26
-- Will need a new FastAPI endpoint (e.g. `GET /api/contracts/export`) returning a file response
-- Frontend: button in ContractTable triggers download via `<a>` tag or `window.location`
+- User clicks Export CSV button in ContractTable header to download filtered rows
+- Status: **Done**, deployed 9-May-26
+- Implemented client-side in `ContractTable.jsx` — no new API endpoint needed
+- BOM prefix ensures Thai characters display correctly in Excel
+- Exports only filtered rows; filename includes date `contract_status_YYYY-MM-DD.csv`
